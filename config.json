@@ -1,6 +1,6 @@
 {
   "home": { "name": "Châtel-Saint-Denis", "lat": 46.5233, "lon": 6.9068 },
-  "max_km": 80,
+  "max_km": 50,
   "levels": ["P20", "P50"],
   "exclude_keywords": [],
   "include_unknown_distance": true,
