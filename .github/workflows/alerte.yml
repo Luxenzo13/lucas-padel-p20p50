@@ -2,7 +2,7 @@ name: Alerte tournois padel
 
 on:
   schedule:
-    - cron: "0 5,15 * * *"
+    - cron: "0 5,8,10,15,17,19 * * *"
   workflow_dispatch:
 
 permissions:
