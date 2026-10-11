@@ -77,6 +77,7 @@ def field(ev, hint, section):
 
 # ---------- Localisation ----------
 def place_queries(ev):
+    """Renvoie (liste de requêtes à essayer, code postal attendu)."""
     addr = field(ev, "Address", 3)
     zip_org = field(ev, "Zip Code", 5)
     loc = field(ev, "Location", 5)
@@ -91,20 +92,27 @@ def place_queries(ev):
         queries.append(loc)
     if addr and addr not in queries:
         queries.append(addr)
-    return queries
+    # variantes : "St-Maurice" -> "Saint-Maurice"
+    for q in list(queries):
+        v = re.sub(r"\bSt[-. ]", "Saint-", q, flags=re.IGNORECASE)
+        if v != q and v not in queries:
+            queries.append(v)
+    return queries, zip_
 
 
-def geocode_one(query):
-    """Essaie le géocodeur fédéral suisse, puis OpenStreetMap."""
+def geocode_one(query, zip_=None):
+    """Géocodeur fédéral suisse, puis OpenStreetMap. Si on connaît le code postal,
+    on refuse tout résultat qui ne le contient pas (évite les faux positifs)."""
     try:
         r = requests.get(
             "https://api3.geo.admin.ch/rest/services/api/SearchServer",
-            params={"searchText": query, "type": "locations", "limit": 1, "sr": 4326},
+            params={"searchText": query, "type": "locations", "limit": 5, "sr": 4326},
             timeout=20,
         )
-        res = r.json().get("results") or []
-        if res:
-            a = res[0]["attrs"]
+        for res in r.json().get("results") or []:
+            a = res["attrs"]
+            if zip_ and zip_ not in str(a.get("label", "")):
+                continue
             return float(a["lat"]), float(a["lon"])
     except Exception:
         pass
@@ -112,30 +120,33 @@ def geocode_one(query):
         time.sleep(1.1)
         r = requests.get(
             "https://nominatim.openstreetmap.org/search",
-            params={"q": query, "format": "json", "limit": 1, "countrycodes": "ch"},
+            params={"q": query, "format": "json", "limit": 5, "countrycodes": "ch", "addressdetails": 1},
             headers={"user-agent": "alerte-padel perso"},
             timeout=20,
         )
-        res = r.json()
-        if res:
-            return float(res[0]["lat"]), float(res[0]["lon"])
+        for res in r.json():
+            if zip_ and (res.get("address") or {}).get("postcode") != zip_:
+                continue
+            return float(res["lat"]), float(res["lon"])
     except Exception:
         pass
     return None
 
 
 def locate(ev, cache):
-    queries = place_queries(ev)
+    queries, zip_ = place_queries(ev)
     if not queries:
         return None
-    key = queries[0].lower()
+    key = "v2|" + queries[0].lower()  # v2 : ignore les anciens résultats non vérifiés
     if key in cache:
         return tuple(cache[key]) if cache[key] else None
     for q in queries:
-        pos = geocode_one(q)
+        pos = geocode_one(q, zip_)
         if pos:
+            print(f"Localisé : {q} -> {pos[0]:.4f}, {pos[1]:.4f}")
             cache[key] = list(pos)
             return pos
+    print(f"Introuvable : {queries[0]}")
     cache[key] = None
     return None
 
