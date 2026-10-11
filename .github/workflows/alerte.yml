@@ -2,8 +2,8 @@ name: Alerte tournois padel
 
 on:
   schedule:
-    - cron: "0 5,15 * * *"   # 2 fois par jour (heure UTC)
-  workflow_dispatch:          # permet de le lancer à la main
+    - cron: "0 5,15 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,8 +24,8 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
 
-            - name: Sauvegarder les tournois déjà vus
-              run: |
+      - name: Sauvegarder les tournois déjà vus
+        run: |
           git config user.name "alerte-bot"
           git config user.email "alerte-bot@users.noreply.github.com"
           git add seen.json geocache.json
