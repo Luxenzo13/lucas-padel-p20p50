@@ -170,15 +170,47 @@ def fmt_date(iso):
     return f"{JOURS[d.weekday()]} {d.day:02d}.{d.month:02d}"
 
 
+UNITES = {
+    "équipes": "équipes", "equipes": "équipes", "équipe": "équipes", "teams": "équipes", "team": "équipes",
+    "paires": "paires", "paare": "paires", "pairs": "paires",
+    "joueurs": "joueurs", "joueuses": "joueurs", "players": "joueurs", "spieler": "joueurs",
+}
+
+
+def extract_time(ev):
+    """Heure de début trouvée dans la description ou le nom (ex. 'Start: 18:00', 'dès 9h')."""
+    for texte in (ev.get("event_description") or "", ev.get("name") or ""):
+        m = re.search(r"(?<!\d)([01]?\d|2[0-3])[:.]([0-5]\d)(?!\d)", texte)
+        if m:
+            return f"{int(m.group(1)):02d}:{m.group(2)}"
+        m = re.search(r"(?<!\d)([01]?\d|2[0-3])\s*[hH]\s*([0-5]\d)?(?!\d)", texte)
+        if m:
+            return f"{int(m.group(1)):02d}:{m.group(2) or '00'}"
+    return None
+
+
+def extract_max(ev):
+    """Nombre maximum indiqué par l'organisateur (ex. 'Max. 8 équipes')."""
+    texte = (ev.get("event_description") or "") + " " + (ev.get("name") or "")
+    m = re.search(r"\bmax\.?\s*:?\s*(\d+)\s*([A-Za-zéèÉ]+)?", texte, re.IGNORECASE)
+    if not m:
+        return None
+    unite = UNITES.get((m.group(2) or "").lower())
+    return f"Max. {m.group(1)}" + (f" {unite}" if unite else "")
+
+
 def describe(ev, dist):
     lieu = field(ev, "Location", 5) or field(ev, "Venue", 3) or "?"
     venue = field(ev, "Venue", 3)
     lignes = [ev["name"]]
     lignes.append(f"{fmt_date(ev['event_start_date'])} - {venue + ', ' if venue else ''}{lieu}")
     lignes.append(f"~{dist:.0f} km" if dist is not None else "distance inconnue")
-    desc = (ev.get("event_description") or "").strip().splitlines()
-    if desc:
-        lignes.append(desc[0].strip())
+    heure = extract_time(ev)
+    if heure:
+        lignes.append(f"Début : {heure}")
+    maxi = extract_max(ev)
+    if maxi:
+        lignes.append(maxi)
     if ev.get("registered_participants") is not None:
         lignes.append(f"{ev['registered_participants']} inscrit(s)")
     h = (ev.get("registration_closes_in") or {}).get("total_hours")
