@@ -219,6 +219,16 @@ def describe(ev, dist):
     return "\n".join(lignes)
 
 
+def ligne_courte(ev):
+    heure = extract_time(ev)
+    maxi = extract_max(ev)
+    return " ".join(
+        x for x in (
+            "-", fmt_date(ev["event_start_date"]), heure, ev["event_level"], field(ev, "Location", 5), f"({maxi})" if maxi else None
+        ) if x
+    )
+
+
 def send_ntfy(topic, title, message, dry_run):
     if dry_run or not topic:
         print(f"--- [{'dry-run' if dry_run else 'NTFY_TOPIC absent'}] {title}\n{message}\n")
@@ -263,11 +273,11 @@ def main():
     nouveaux = [(e, d) for e, d in retenus if str(e["id"]) not in seen]
 
     if premier_passage:
-        lignes = [f"- {fmt_date(e['event_start_date'])} {e['event_level']} {field(e, 'Location', 5)}" for e, _ in retenus[:8]]
+        lignes = [ligne_courte(e) for e, _ in retenus[:8]]
         msg = f"{len(retenus)} tournoi(s) correspondent déjà à tes critères.\n" + "\n".join(lignes)
         send_ntfy(topic, "Alerte padel activée", msg, dry_run)
     elif len(nouveaux) > 5:
-        lignes = [f"- {fmt_date(e['event_start_date'])} {e['event_level']} {field(e, 'Location', 5)}" for e, _ in nouveaux]
+        lignes = [ligne_courte(e) for e, _ in nouveaux]
         send_ntfy(topic, f"{len(nouveaux)} nouveaux tournois", "\n".join(lignes), dry_run)
     else:
         for ev, dist in nouveaux:
