@@ -24,9 +24,9 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
 
-      - name: Sauvegarder les tournois déjà vus
+            - name: Sauvegarder les tournois déjà vus
         run: |
           git config user.name "alerte-bot"
           git config user.email "alerte-bot@users.noreply.github.com"
           git add seen.json geocache.json
-          git diff --cached --quiet || (git commit -m "maj etat" && git push)
+          git diff --cached --quiet || (git commit -m "maj etat" && git pull --rebase && git push)
